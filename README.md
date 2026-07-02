@@ -79,13 +79,59 @@ This app uses the **Mailtrap Email API** with a template hosted in the Mailtrap 
 ### Stripe setup
 
 1. Grab your **test-mode secret key** from [Stripe Dashboard → Developers → API keys](https://dashboard.stripe.com/test/apikeys). Put it into `.env` as `STRIPE_SECRET_KEY` (starts with `sk_test_...`).
-2. Install the [Stripe CLI](https://stripe.com/docs/stripe-cli) and log in with `stripe login`.
-3. Forward webhooks to your local server:
-   ```bash
-   stripe listen --forward-to localhost:3000/webhooks/stripe
-   ```
-   The CLI prints a signing secret (`whsec_...`) — put it into `.env` as `STRIPE_WEBHOOK_SECRET` and restart `rails server` so it picks up the new value.
+2. Pick one of the three webhook delivery paths below (Stripe CLI, ngrok, or a real public URL) and follow it to obtain a `STRIPE_WEBHOOK_SECRET`.
+3. Restart `rails server` so it picks up the new secret.
 4. Open `http://localhost:3000`, click **Buy Now**, and use Stripe's test card `4242 4242 4242 4242` with any future expiry, any CVC, and any postal code.
+
+Or, if you just want to see the email delivery path without touching Stripe at all:
+
+```bash
+bin/rails simulate:order_email
+```
+
+That rake task builds a fake order and calls `OrderConfirmationMailer` directly against the Mailtrap Email API — no Stripe involvement.
+
+### Getting a webhook signing secret
+
+Stripe's servers can't reach `localhost` from the internet, so you need one of the three paths below.
+
+#### Option A — Stripe CLI (recommended for local dev)
+
+The Stripe CLI opens a tunnel between Stripe and your local server. It's the simplest path with the fewest moving parts.
+
+```bash
+brew install stripe/stripe-cli/stripe
+stripe login
+stripe listen --forward-to localhost:3000/webhooks/stripe
+```
+
+The CLI prints a signing secret (`whsec_...`) — put it into `.env` as `STRIPE_WEBHOOK_SECRET`. Keep the `stripe listen` process running while you test.
+
+#### Option B — ngrok (public URL for your localhost)
+
+If you'd rather see the exact flow Stripe uses in production, expose your local port with [ngrok](https://ngrok.com):
+
+```bash
+brew install ngrok
+ngrok config add-authtoken YOUR_TOKEN   # one-time, sign up at ngrok.com
+ngrok http 3000
+```
+
+ngrok prints a public URL like `https://abc123-45-67.ngrok-free.app`. In [Stripe Dashboard → Developers → Webhooks → Add endpoint](https://dashboard.stripe.com/test/webhooks):
+
+- **Endpoint URL:** `https://abc123-45-67.ngrok-free.app/webhooks/stripe`
+- **Events to send:** `checkout.session.completed`
+
+Save the endpoint, click it, reveal the **Signing secret**, and put the `whsec_...` value into `.env` as `STRIPE_WEBHOOK_SECRET`.
+
+Note: on the ngrok free plan the URL changes every time you restart, and you'll need to update the endpoint in Stripe each time. Paid plans keep the subdomain stable.
+
+#### Option C — production (real domain)
+
+Once the app is deployed to a public server (Heroku, Fly.io, Render, DigitalOcean, etc.), you don't need Stripe CLI or ngrok at all. Register the deployed URL directly in [Stripe Dashboard → Developers → Webhooks](https://dashboard.stripe.com/webhooks):
+
+- **Endpoint URL:** `https://yourdomain.com/webhooks/stripe`
+- Copy the endpoint's signing secret into the production `STRIPE_WEBHOOK_SECRET` env var
 
 ## Environment Variables
 
@@ -95,7 +141,7 @@ This app uses the **Mailtrap Email API** with a template hosted in the Mailtrap 
 | `MAILTRAP_FROM_EMAIL` | Verified sender address (e.g. `hello@demomailtrap.co`) |
 | `MAILTRAP_ORDER_TEMPLATE_UUID` | UUID of the transactional template in Mailtrap → Templates |
 | `STRIPE_SECRET_KEY` | Stripe test-mode secret key |
-| `STRIPE_WEBHOOK_SECRET` | Signing secret from `stripe listen` (or the dashboard endpoint) |
+| `STRIPE_WEBHOOK_SECRET` | Signing secret — from `stripe listen`, or the dashboard endpoint if you use ngrok / a real URL |
 
 ## Email Flow
 
