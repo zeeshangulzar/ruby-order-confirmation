@@ -1,0 +1,21 @@
+<div class="product-card">
+  <h1><%= @product[:name] %></h1>
+  <p class="description"><%= @product[:description] %></p>
+  <p class="price">
+    <%= format("$%.2f", @product[:price_cents] / 100.0) %>
+    <span class="currency"><%= @product[:currency].upcase %></span>
+  </p>
+
+  <%= button_to "Buy Now", checkout_path, method: :post, class: "buy-button" %>
+</div>
+
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif; background: #f6f6f6; margin: 0; padding: 48px 24px; color: #222; }
+  .product-card { max-width: 400px; margin: 0 auto; background: #fff; border-radius: 8px; padding: 32px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,.05); }
+  .product-card h1 { margin: 0 0 8px 0; }
+  .description { color: #666; margin: 0 0 24px 0; }
+  .price { font-size: 28px; font-weight: 600; margin: 0 0 24px 0; }
+  .currency { font-size: 14px; color: #888; font-weight: 400; margin-left: 4px; }
+  .buy-button { background: #635bff; color: #fff; border: none; padding: 14px 32px; border-radius: 6px; font-size: 16px; font-weight: 600; cursor: pointer; }
+  .buy-button:hover { background: #524ae0; }
+</style>
